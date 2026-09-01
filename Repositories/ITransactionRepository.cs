@@ -1,16 +1,20 @@
 ﻿using FinanceManager.Models;
-using FinanceManager.Requests.Categories;
 using FinanceManager.Requests.Transactions;
 
 namespace FinanceManager.Repositories
 {
     public interface ITransactionRepository
     {
-        Task<IQueryable<Transaction>> GetAllAsync(TransactionGetAllRequest request);
-        Task<Transaction> GetByIdAsync(int id);
+        /// <summary>Query já filtrada pelo usuário e ordenada. A paginação é responsabilidade do service.</summary>
+        IQueryable<Transaction> GetAll(TransactionGetAllRequest request);
+
+        Task<Transaction?> GetByIdAsync(int id, int userId);
         Task AddAsync(Transaction transaction);
-        Task UpdateAsync(Transaction transaction);
-        Task DeleteAsync(Transaction transaction);
-        Task CommitAsync();
+        void Update(Transaction transaction);
+        void Delete(Transaction transaction);
+        Task SaveChangesAsync();
+
+        /// <summary>Base para agregações do dashboard (sem ordenação/paginação).</summary>
+        IQueryable<Transaction> QueryByUser(int userId);
     }
 }

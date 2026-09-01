@@ -7,32 +7,29 @@ namespace FinanceManager.Repositories
 {
     public class TransactionRepository(AppDbContext context) : ITransactionRepository
     {
+        public IQueryable<Transaction> GetAll(TransactionGetAllRequest request)
+            => context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == request.UserId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ThenByDescending(t => t.Id);
+
+        public IQueryable<Transaction> QueryByUser(int userId)
+            => context.Transactions.AsNoTracking().Where(t => t.UserId == userId);
+
+        public Task<Transaction?> GetByIdAsync(int id, int userId)
+            => context.Transactions.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+
         public async Task AddAsync(Transaction transaction)
             => await context.Transactions.AddAsync(transaction);
-   
-        public async Task CommitAsync()
-            => await context.SaveChangesAsync();
-        
 
-        public async Task DeleteAsync(Transaction transaction)
+        public void Update(Transaction transaction)
+            => context.Transactions.Update(transaction);
+
+        public void Delete(Transaction transaction)
             => context.Transactions.Remove(transaction);
 
-        public Task<IQueryable<Transaction>> GetAllAsync(TransactionGetAllRequest request)
-        {
-            var query = context
-                .Transactions
-                .AsNoTracking()
-                .Skip(request.PageNumber)
-                .Take(request.PageSize)
-                .AsQueryable();
-
-            return Task.FromResult(query);
-        }
-
-        public async Task<Transaction> GetByIdAsync(int id)
-            => await context.Transactions.FirstOrDefaultAsync(t => t.Id == id);
-
-        public Task UpdateAsync(Transaction transaction)
-            => Task.FromResult(context.Transactions.Update(transaction));
+        public Task SaveChangesAsync()
+            => context.SaveChangesAsync();
     }
 }

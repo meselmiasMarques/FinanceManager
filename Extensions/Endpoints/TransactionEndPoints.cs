@@ -1,6 +1,6 @@
-﻿using FinanceManager.Requests.Transactions;
+﻿using FinanceManager.Requests;
+using FinanceManager.Requests.Transactions;
 using FinanceManager.Services;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace FinanceManager.Extensions.Endpoints
 {
@@ -8,92 +8,50 @@ namespace FinanceManager.Extensions.Endpoints
     {
         public static void Map(IEndpointRouteBuilder app)
         {
+            var group = app.MapGroup("/transactions").WithTags("Transações");
 
-            app.MapGet("/transactions", async (
-                ITransactionService Service,
-                int skip = 1,
-                int take = 10) =>
+            group.MapGet("/", async (
+                ITransactionService service,
+                int pageNumber = 1,
+                int pageSize = PagedRequest.DefaultPageSize) =>
             {
-                var request = new TransactionGetAllRequest
+                var result = await service.GetAllAsync(new TransactionGetAllRequest
                 {
-                    PageNumber = skip,
-                    PageSize = take,
-                    UserId = 1
-                };
-                var result = await Service.GetAllAsync(request);
-                return result.Code == 200 ?
-                Results.Ok(result)
-                : Results.BadRequest(result);
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                });
+                return result.ToHttpResult();
             })
-                 .WithDescription("Lista as transações")
-                 .WithTags("Transações")
-                 .WithOrder(1);
+            .WithDescription("Lista as transações do usuário (paginado).");
 
-            app.MapGet("/transactions/{id}", async (
-                ITransactionService Service,
-                int id) =>
+            group.MapGet("/{id:int}", async (ITransactionService service, int id) =>
             {
-                var request = new TransactionGetByIdRequest
-                {
-                    Id = id,
-                    UserId = 1 //Identity.User
-                };
-                var result = await Service.GetByIdAsync(request);
-                return result.Code == 200 ?
-                Results.Ok(result)
-                : Results.BadRequest(result);
+                var result = await service.GetByIdAsync(new TransactionGetByIdRequest { Id = id });
+                return result.ToHttpResult();
             })
-                 .WithDescription("Busca uma transação pelo ID")
-                 .WithTags("Transações")
-                 .WithOrder(2);
+            .WithDescription("Busca uma transação pelo ID.");
 
-            app.MapPost("/transactions", async (
-                ITransactionService Service,
-                TransactionCreateRequest request) =>
+            group.MapPost("/", async (ITransactionService service, TransactionCreateRequest request) =>
             {
-
-
-
-                var result = await Service.AddAsync(request);
-                return result.Code == 200 ?
-                Results.Created($"/transactions/{result.Data.Id}", result)
-                : Results.BadRequest(result);
+                var result = await service.AddAsync(request);
+                return result.ToCreatedResult(transaction => $"/transactions/{transaction.Id}");
             })
-                 .WithDescription("Cria uma nova transação")
-                 .WithTags("Transações")
-                 .WithOrder(3);
+            .WithDescription("Cria uma nova transação.");
 
-            app.MapPut("/transactions", async (
-                ITransactionService Service,
-                TransactionEditorRequest request) =>
+            group.MapPut("/{id:int}", async (ITransactionService service, int id, TransactionEditorRequest request) =>
             {
-                var result = await Service.UpdateAsync(request);
-                return result.Code == 200 ?
-                Results.Ok(result)
-                : Results.BadRequest(result);
+                request.Id = id;
+                var result = await service.UpdateAsync(request);
+                return result.ToHttpResult();
             })
-                 .WithDescription("Atualiza uma transação existente")
-                 .WithTags("Transações")
-                 .WithOrder(4);
+            .WithDescription("Atualiza uma transação existente.");
 
-            app.MapDelete("/transactions/{id}", async (
-                ITransactionService Service,
-                int id) =>
+            group.MapDelete("/{id:int}", async (ITransactionService service, int id) =>
             {
-                var request = new TransactionDeleteRequest
-                {
-                    Id = id,
-                    UserId = 1 //Identity.User
-                };
-                var result = await Service.DeleteAsync(request);
-                return result.Code == 200 ?
-                Results.Ok(result)
-                : Results.BadRequest(result);
+                var result = await service.DeleteAsync(new TransactionDeleteRequest { Id = id });
+                return result.ToHttpResult();
             })
-                 .WithDescription("Deleta uma transação existente")
-                 .WithTags("Transações")
-                 .WithOrder(5);
+            .WithDescription("Deleta uma transação existente.");
         }
     }
 }
-

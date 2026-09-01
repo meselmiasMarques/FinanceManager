@@ -14,7 +14,7 @@ namespace FinanceManager.Requests.Transactions
 
         [Required(ErrorMessage = "Amount is required.")]
         [DataType(DataType.Currency)]
-        public decimal Amount { get; set; }
+        public decimal Amount { get; set; } 
 
         [Required(ErrorMessage = "Category is required.")]
         public int CategoryId { get; set; }

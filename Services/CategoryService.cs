@@ -1,74 +1,37 @@
-﻿using FinanceManager.Models;
+﻿using FinanceManager.Extensions;
+using FinanceManager.Models;
 using FinanceManager.Repositories;
-using FinanceManager.Requests;
 using FinanceManager.Requests.Categories;
 using FinanceManager.Responses;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinanceManager.Services
 {
-    public class CategoryService(ICategoryRepository repository) : ICategoryService
+    public class CategoryService(
+        ICategoryRepository repository,
+        IUserContext user,
+        ILogger<CategoryService> logger) : ICategoryService
     {
-        public async Task<Response<Category>> AddAsync(CategoryCreateRequest request)
-        {
-            
-
-
-            var category = new Category
-            {
-                Name = request.Name,
-                Description = request.Description,
-            };
-
-            try
-            {
-                await repository.AddAsync(category);
-                await repository.CommitAsync();
-
-                return new Response<Category>(category, 201, "Categoria criada com sucesso");
-            }
-            catch
-            {
-                return new Response<Category>(null, 500, "Ocorreu um erro ao criar a categoria.");
-            }
-        }
-
-        public async Task<Response<Category>> DeleteAsync(CategoryDeleteRequest request)
-        {
-            try
-            {
-
-                var category = await repository.GetByIdAsync(request.Id);
-
-                if (category == null)
-                    return new Response<Category>(null,404, "Categoria não encontrada.");
-
-                await repository.DeleteAsync(category);
-                await repository.CommitAsync();
-                return new Response<Category>(category,200, "Categoria deletada com sucesso.");
-            }
-            catch
-            {
-                return new Response<Category>(null,500, "Ocorreu um erro ao deletar a categoria.");
-            }
-        }
-
         public async Task<PagedResponse<List<Category>>> GetAllAsync(CategoryGetAllRequest request)
         {
             try
             {
-                var result = await repository.GetAllAsync(request);
+                request.UserId = user.UserId;
 
-               var totalCount = await result.CountAsync();
+                var query = repository.GetAll(request);
+                var totalCount = await query.CountAsync();
 
-               return new PagedResponse<List<Category>>(result.ToList(), request.PageNumber, request.PageSize, totalCount);
+                var data = await query
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync();
 
+                return new PagedResponse<List<Category>>(data, request.PageNumber, request.PageSize, totalCount);
             }
-            catch
+            catch (Exception ex)
             {
-                return new PagedResponse<List<Category>>(null,500, "Ocorreu um erro ao buscar as categorias.");
-
+                logger.LogError(ex, "Erro ao listar categorias");
+                return new PagedResponse<List<Category>>(null, 500, "Ocorreu um erro ao buscar as categorias.");
             }
         }
 
@@ -76,15 +39,38 @@ namespace FinanceManager.Services
         {
             try
             {
-                var category = await repository.GetByIdAsync(request.Id);
-                if (category == null)
-                    return new Response<Category>(null,404, "Categoria não encontrada.");
-
-                return new Response<Category>(category,200, "");
+                var category = await repository.GetByIdAsync(request.Id, user.UserId);
+                return category is null
+                    ? new Response<Category>(null, 404, "Categoria não encontrada.")
+                    : new Response<Category>(category, 200, "Categoria encontrada.");
             }
-            catch 
+            catch (Exception ex)
             {
-                return new Response<Category>(null,500, "Ocorreu um erro ao buscar a categoria.");
+                logger.LogError(ex, "Erro ao buscar categoria {CategoryId}", request.Id);
+                return new Response<Category>(null, 500, "Ocorreu um erro ao buscar a categoria.");
+            }
+        }
+
+        public async Task<Response<Category>> AddAsync(CategoryCreateRequest request)
+        {
+            try
+            {
+                var category = new Category
+                {
+                    Name = request.Name,
+                    Description = request.Description,
+                    UserId = user.UserId,
+                };
+
+                await repository.AddAsync(category);
+                await repository.SaveChangesAsync();
+
+                return new Response<Category>(category, 201, "Categoria criada com sucesso.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao criar categoria");
+                return new Response<Category>(null, 500, "Ocorreu um erro ao criar a categoria.");
             }
         }
 
@@ -92,21 +78,47 @@ namespace FinanceManager.Services
         {
             try
             {
-                var category = await repository.GetByIdAsync(request.Id);
-                if (category == null)
-                    return new Response<Category>(null,404, "Categoria não encontrada.");
+                var category = await repository.GetByIdAsync(request.Id, user.UserId);
+                if (category is null)
+                    return new Response<Category>(null, 404, "Categoria não encontrada.");
 
                 category.Name = request.Name;
                 category.Description = request.Description;
 
-                await repository.UpdateAsync(category);
-                await repository.CommitAsync();
+                repository.Update(category);
+                await repository.SaveChangesAsync();
 
-                return new Response<Category>(category,200, "Categoria atualizada com sucesso.");
+                return new Response<Category>(category, 200, "Categoria atualizada com sucesso.");
             }
-            catch
+            catch (Exception ex)
             {
-                return new Response<Category>(null,500, "Ocorreu um erro ao atualizar a categoria.");
+                logger.LogError(ex, "Erro ao atualizar categoria {CategoryId}", request.Id);
+                return new Response<Category>(null, 500, "Ocorreu um erro ao atualizar a categoria.");
+            }
+        }
+
+        public async Task<Response<Category>> DeleteAsync(CategoryDeleteRequest request)
+        {
+            try
+            {
+                var category = await repository.GetByIdAsync(request.Id, user.UserId);
+                if (category is null)
+                    return new Response<Category>(null, 404, "Categoria não encontrada.");
+
+                repository.Delete(category);
+                await repository.SaveChangesAsync();
+
+                return new Response<Category>(category, 200, "Categoria deletada com sucesso.");
+            }
+            catch (DbUpdateException ex)
+            {
+                logger.LogWarning(ex, "Tentativa de excluir categoria {CategoryId} com transações vinculadas", request.Id);
+                return new Response<Category>(null, 409, "Não é possível excluir uma categoria que possui transações vinculadas.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao deletar categoria {CategoryId}", request.Id);
+                return new Response<Category>(null, 500, "Ocorreu um erro ao deletar a categoria.");
             }
         }
     }

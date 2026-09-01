@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace FinanceManager.Data.Mappings
 {
-    public class CategoryMap : IEntityTypeConfiguration<Models.Category>
+    public class CategoryMap : IEntityTypeConfiguration<Category>
     {
         public void Configure(EntityTypeBuilder<Category> builder)
         {
@@ -20,15 +20,22 @@ namespace FinanceManager.Data.Mappings
 
             builder.Property(c => c.Name)
                 .HasColumnName("Name")
-                .HasColumnType("varchar(50)");
+                .HasColumnType("varchar(50)")
+                .HasMaxLength(50)
+                .IsRequired();
 
             builder.Property(c => c.Description)
                 .HasColumnName("Description")
-                .HasColumnType("varchar(200)");
+                .HasColumnType("varchar(200)")
+                .HasMaxLength(200);
 
             builder.Property(c => c.UserId)
                 .HasColumnName("UserId")
-                .HasColumnType("integer");
+                .HasColumnType("integer")
+                .IsRequired();
+
+            builder.HasIndex(c => c.UserId)
+                .HasDatabaseName("IX_category_UserId");
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using FinanceManager.Models;
+﻿using FinanceManager.Extensions;
+using FinanceManager.Models;
 using FinanceManager.Repositories;
 using FinanceManager.Requests.Transactions;
 using FinanceManager.Responses;
@@ -6,39 +7,115 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FinanceManager.Services
 {
-    public class TransactionService(ITransactionRepository repository) : ITransactionService
+    public class TransactionService(
+        ITransactionRepository repository,
+        IUserContext user,
+        ILogger<TransactionService> logger) : ITransactionService
     {
+        public async Task<PagedResponse<List<Transaction>>> GetAllAsync(TransactionGetAllRequest request)
+        {
+            try
+            {
+                request.UserId = user.UserId;
+
+                var query = repository.GetAll(request);
+                var totalCount = await query.CountAsync();
+
+                var data = await query
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync();
+
+                return new PagedResponse<List<Transaction>>(data, request.PageNumber, request.PageSize, totalCount);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao listar transações");
+                return new PagedResponse<List<Transaction>>(null, 500, "Ocorreu um erro ao buscar as transações.");
+            }
+        }
+
+        public async Task<Response<Transaction>> GetByIdAsync(TransactionGetByIdRequest request)
+        {
+            try
+            {
+                var transaction = await repository.GetByIdAsync(request.Id, user.UserId);
+                return transaction is null
+                    ? new Response<Transaction>(null, 404, "Transação não encontrada.")
+                    : new Response<Transaction>(transaction, 200, "Transação encontrada.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao buscar transação {TransactionId}", request.Id);
+                return new Response<Transaction>(null, 500, "Ocorreu um erro ao buscar a transação.");
+            }
+        }
+
         public async Task<Response<Transaction>> AddAsync(TransactionCreateRequest request)
         {
-            var transaction = new Transaction
-            {
-                Title = request.Title,
-                Type = request.Type,
-                Amount = request.Amount,
-                CreatedAt = DateTime.UtcNow,
-                UserId = 1,
-                CategoryId = request.CategoryId
-            };
+            if (request.Amount <= 0)
+                return new Response<Transaction>(null, 400, "O valor da transação deve ser maior que zero.");
 
             try
             {
-                await repository.AddAsync(transaction);
-                await repository.CommitAsync();
-                return new Response<Transaction>
+                var transaction = new Transaction
                 {
-                    Code = 200,
-                    Data = transaction,
-                    Message = "Transaction created successfully",
+                    Title = request.Title,
+                    Type = request.Type,
+                    Amount = request.Amount,
+                    CategoryId = request.CategoryId,
+                    UserId = user.UserId,
+                    CreatedAt = DateTime.UtcNow,
                 };
-            }
-            //catch
-            //{
-            //    return new Response<Transaction>(null, 500, "An error occurred while creating the transaction");
-            //}
 
+                await repository.AddAsync(transaction);
+                await repository.SaveChangesAsync();
+
+                return new Response<Transaction>(transaction, 201, "Transação criada com sucesso.");
+            }
             catch (DbUpdateException ex)
             {
-                return new Response<Transaction>(null, 500, $"EXDB01: {ex.Message}");
+                logger.LogWarning(ex, "Falha ao criar transação (provável categoria inexistente)");
+                return new Response<Transaction>(null, 400, "Não foi possível criar a transação. Verifique a categoria informada.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao criar transação");
+                return new Response<Transaction>(null, 500, "Ocorreu um erro ao criar a transação.");
+            }
+        }
+
+        public async Task<Response<Transaction>> UpdateAsync(TransactionEditorRequest request)
+        {
+            if (request.Amount <= 0)
+                return new Response<Transaction>(null, 400, "O valor da transação deve ser maior que zero.");
+
+            try
+            {
+                var transaction = await repository.GetByIdAsync(request.Id, user.UserId);
+                if (transaction is null)
+                    return new Response<Transaction>(null, 404, "Transação não encontrada.");
+
+                transaction.Title = request.Title;
+                transaction.Type = request.Type;
+                transaction.Amount = request.Amount;
+                transaction.CategoryId = request.CategoryId;
+                transaction.UpdatedAt = DateTime.UtcNow;
+
+                repository.Update(transaction);
+                await repository.SaveChangesAsync();
+
+                return new Response<Transaction>(transaction, 200, "Transação atualizada com sucesso.");
+            }
+            catch (DbUpdateException ex)
+            {
+                logger.LogWarning(ex, "Falha ao atualizar transação {TransactionId}", request.Id);
+                return new Response<Transaction>(null, 400, "Não foi possível atualizar a transação. Verifique a categoria informada.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao atualizar transação {TransactionId}", request.Id);
+                return new Response<Transaction>(null, 500, "Ocorreu um erro ao atualizar a transação.");
             }
         }
 
@@ -46,72 +123,19 @@ namespace FinanceManager.Services
         {
             try
             {
-                var transaction = await repository.GetByIdAsync(request.Id);
-                if (transaction == null)
-                {
-                    return new Response<Transaction>(null, 404, "Transaction not found");
-                }
+                var transaction = await repository.GetByIdAsync(request.Id, user.UserId);
+                if (transaction is null)
+                    return new Response<Transaction>(null, 404, "Transação não encontrada.");
 
-                await repository.DeleteAsync(transaction);
-                await repository.CommitAsync();
-                return new Response<Transaction>
-                {
-                    Code = 200,
-                    Data = transaction,
-                    Message = "Transaction deleted successfully",
-                };
+                repository.Delete(transaction);
+                await repository.SaveChangesAsync();
+
+                return new Response<Transaction>(transaction, 200, "Transação deletada com sucesso.");
             }
-            catch
+            catch (Exception ex)
             {
-                return new Response<Transaction>(null, 500, "An error occurred while deleting the transaction");
-            }
-        }
-
-        public async Task<PagedResponse<List<Transaction>>> GetAllAsync(TransactionGetAllRequest request)
-        {
-            var query = await repository.GetAllAsync(request);
-
-            var totalCount = await query.CountAsync();
-
-            var result = await query.ToListAsync();
-
-            return new PagedResponse<List<Transaction>>(result, request.PageNumber, request.PageSize, totalCount);
-        }
-
-        public async Task<Response<Transaction>> GetByIdAsync(TransactionGetByIdRequest request)
-        {
-            var result = await repository.GetByIdAsync(request.Id);
-            if (result == null)
-            {
-                return new Response<Transaction>(null, 404, "Transação não encontrada");
-            }
-
-            return new Response<Transaction>(result, 200, "Transaction retrieved successfully");
-        }
-
-        public async Task<Response<Transaction>> UpdateAsync(TransactionEditorRequest request)
-        {
-            var transaction = await repository.GetByIdAsync(request.Id);
-
-            if (transaction == null)
-            {
-                return new Response<Transaction>(null, 404, "Transaction not found");
-            }
-
-            transaction.Title = request.Title;
-            transaction.Type = request.Type;
-            transaction.Amount = request.Amount;
-            transaction.CategoryId = request.CategoryId;
-
-            try
-            {
-                await repository.UpdateAsync(transaction);
-                await repository.CommitAsync();
-                return new Response<Transaction>(transaction, 200, "Transaction updated successfully");
-            }
-            catch
-            {
-                return new Response<Transaction>(null, 500, "An error occurred while updating the transaction");
+                logger.LogError(ex, "Erro ao deletar transação {TransactionId}", request.Id);
+                return new Response<Transaction>(null, 500, "Ocorreu um erro ao deletar a transação.");
             }
         }
     }

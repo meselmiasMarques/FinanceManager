@@ -1,9 +1,6 @@
-﻿using FinanceManager.Data;
-using FinanceManager.Models;
+﻿using FinanceManager.Requests;
 using FinanceManager.Requests.Categories;
 using FinanceManager.Services;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FinanceManager.Extensions.Endpoints
 {
@@ -11,77 +8,50 @@ namespace FinanceManager.Extensions.Endpoints
     {
         public static void Map(IEndpointRouteBuilder app)
         {
-            app.MapGet("/categories", async (
-                ICategoryService Service, 
-                int skip = 1, 
-                int take = 10) =>
+            var group = app.MapGroup("/categories").WithTags("Categorias");
+
+            group.MapGet("/", async (
+                ICategoryService service,
+                int pageNumber = 1,
+                int pageSize = PagedRequest.DefaultPageSize) =>
             {
-                var request = new CategoryGetAllRequest
+                var result = await service.GetAllAsync(new CategoryGetAllRequest
                 {
-                    PageNumber = skip,
-                    PageSize = take,
-                   UserId = 1
-                };
-                var result = await Service.GetAllAsync(request);
-                return result.Code == 200 ? Results.Ok(result) : Results.BadRequest(result);
-            })
-                 .WithDescription("Lista as categorias")
-                 .WithTags("Categorias")
-                 .WithOrder(1);
-
-            app.MapGet("/categories{id:int}", async (ICategoryService Service, int id) =>
-            {
-                var result = await Service.GetByIdAsync(new CategoryGetByIdRequest { Id = id });
-                return result.IsSuccess ?
-                Results.Ok(result) 
-                : Results.BadRequest(result);
-
-            })
-                .WithDescription("recupera uma categoria")
-                .WithTags("Categorias")
-                .WithOrder(2);
-
-            app.MapPost("/categories", async (ICategoryService Service, CategoryCreateRequest request) =>
-            {
-                var result = await Service.AddAsync(new CategoryCreateRequest
-                {
-                    Name = request.Name,
-                    Description = request.Description
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
                 });
-                return result.IsSuccess 
-                    ? Results.Created($"/categories/{result.Data.Id}", result.Data) 
-                    : Results.BadRequest(result);
+                return result.ToHttpResult();
             })
-                .WithDescription("Cria uma nova categoria")
-                .WithTags("Categorias")
-                .WithOrder(3);
+            .WithDescription("Lista as categorias do usuário (paginado).");
 
-            app.MapPut("/categories/{id:int}", async (ICategoryService Service, CategoryUpdateRequest request, int id) =>
+            group.MapGet("/{id:int}", async (ICategoryService service, int id) =>
             {
-                var result = await Service.UpdateAsync(new CategoryUpdateRequest
-                {
-                    Id = id,
-                    Name = request.Name,
-                    Description = request.Description
-                });
-                return result.IsSuccess ? 
-                    Results.Ok(result) 
-                    : Results.BadRequest(result);
+                var result = await service.GetByIdAsync(new CategoryGetByIdRequest { Id = id });
+                return result.ToHttpResult();
             })
-                .WithDescription("Edita uma categoria")
-                .WithTags("Categorias")
-                .WithOrder(4);
+            .WithDescription("Recupera uma categoria pelo ID.");
 
-            app.MapDelete("/categories/{id:int}", async (ICategoryService Service, int id) =>
+            group.MapPost("/", async (ICategoryService service, CategoryCreateRequest request) =>
             {
-                var result = await Service.DeleteAsync(new CategoryDeleteRequest { Id = id });
-                return result.IsSuccess ? 
-                    Results.Ok(result) 
-                    : Results.BadRequest(result);
+                var result = await service.AddAsync(request);
+                return result.ToCreatedResult(category => $"/categories/{category.Id}");
             })
-                .WithDescription("Deleta uma categoria")
-                .WithTags("Categorias")
-                .WithOrder(5);
+            .WithDescription("Cria uma nova categoria.");
+
+            group.MapPut("/{id:int}", async (ICategoryService service, int id, CategoryUpdateRequest request) =>
+            {
+                request.Id = id;
+                var result = await service.UpdateAsync(request);
+                return result.ToHttpResult();
+            })
+            .WithDescription("Edita uma categoria existente.");
+
+            group.MapDelete("/{id:int}", async (ICategoryService service, int id) =>
+            {
+                var result = await service.DeleteAsync(new CategoryDeleteRequest { Id = id });
+                return result.ToHttpResult();
+            })
+            .WithDescription("Remove uma categoria.");
         }
     }
 }

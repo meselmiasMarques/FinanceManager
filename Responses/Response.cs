@@ -4,19 +4,16 @@ namespace FinanceManager.Responses
 {
     public class Response<T> where T : class
     {
-        private readonly int _code;
         public T? Data { get; set; }
-        public int Code { get; set; }
-        public string Message { get; set; }
-
+        public int Code { get; set; } = 200;
+        public string Message { get; set; } = string.Empty;
 
         [JsonConstructor]
-        public Response() 
-            =>  _code = 200;
-        
+        public Response()
+        {
+        }
 
-   
-        public Response(T? data, int code = 200, string? message = null) 
+        public Response(T? data, int code = 200, string? message = null)
         {
             Data = data;
             Code = code;
@@ -24,6 +21,6 @@ namespace FinanceManager.Responses
         }
 
         [JsonIgnore]
-        public bool IsSuccess => Code >= 200 && Code < 299;
+        public bool IsSuccess => Code is >= 200 and < 300;
     }
 }

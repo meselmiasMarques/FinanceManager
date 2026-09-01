@@ -1,17 +1,17 @@
 ﻿using FinanceManager.Models;
 using FinanceManager.Requests.Categories;
-using FinanceManager.Responses;
 
 namespace FinanceManager.Repositories
 {
     public interface ICategoryRepository
     {
-        Task<IQueryable<Category>> GetAllAsync(CategoryGetAllRequest request);
-        Task<Category> GetByIdAsync(int id);
-        Task AddAsync(Category category);
-        Task UpdateAsync(Category category);
-        Task DeleteAsync(Category category);
+        /// <summary>Query já filtrada pelo usuário e ordenada. A paginação é responsabilidade do service.</summary>
+        IQueryable<Category> GetAll(CategoryGetAllRequest request);
 
-        Task CommitAsync();
+        Task<Category?> GetByIdAsync(int id, int userId);
+        Task AddAsync(Category category);
+        void Update(Category category);
+        void Delete(Category category);
+        Task SaveChangesAsync();
     }
 }
