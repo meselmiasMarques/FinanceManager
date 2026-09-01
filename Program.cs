@@ -51,13 +51,8 @@ if (app.Environment.IsDevelopment())
 
 
 
-CategoryEndPoints.MapCategoryEndpoints(app);
-TransactionEndPoints.MapTransactionEndpoints(app);
-
-
-
-
-
+CategoryEndPoints.Map(app);
+TransactionEndPoints.Map(app);
 
 app.Run();
 

@@ -7,9 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FinanceManager.Extensions.Endpoints
 {
-    public static class CategoryEndPoints
+    public class CategoryEndPoints : IEndPoint
     {
-        public static void MapCategoryEndpoints(this IEndpointRouteBuilder app)
+        public static void Map(IEndpointRouteBuilder app)
         {
             app.MapGet("/categories", async (
                 ICategoryService Service, 

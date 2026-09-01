@@ -4,10 +4,11 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace FinanceManager.Extensions.Endpoints
 {
-    public static class TransactionEndPoints
+    public class TransactionEndPoints : IEndPoint
     {
-        public static void MapTransactionEndpoints(this IEndpointRouteBuilder app) { 
-            
+        public static void Map(IEndpointRouteBuilder app)
+        {
+
             app.MapGet("/transactions", async (
                 ITransactionService Service,
                 int skip = 1,
@@ -20,8 +21,8 @@ namespace FinanceManager.Extensions.Endpoints
                     UserId = 1
                 };
                 var result = await Service.GetAllAsync(request);
-                return result.Code == 200 ? 
-                Results.Ok(result) 
+                return result.Code == 200 ?
+                Results.Ok(result)
                 : Results.BadRequest(result);
             })
                  .WithDescription("Lista as transações")
@@ -50,12 +51,12 @@ namespace FinanceManager.Extensions.Endpoints
                 ITransactionService Service,
                 TransactionCreateRequest request) =>
             {
-                
-                
+
+
 
                 var result = await Service.AddAsync(request);
                 return result.Code == 200 ?
-                Results.Created($"/transactions/{result.Data.Id}",result)
+                Results.Created($"/transactions/{result.Data.Id}", result)
                 : Results.BadRequest(result);
             })
                  .WithDescription("Cria uma nova transação")
@@ -92,7 +93,7 @@ namespace FinanceManager.Extensions.Endpoints
                  .WithDescription("Deleta uma transação existente")
                  .WithTags("Transações")
                  .WithOrder(5);
-
         }
     }
 }
+
