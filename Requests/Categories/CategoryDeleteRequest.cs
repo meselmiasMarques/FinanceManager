@@ -1,6 +1,6 @@
 ﻿namespace FinanceManager.Requests.Categories
 {
-    public class CategoryDeleteRequest
+    public class CategoryDeleteRequest : RequestBase
     {
         public int Id { get; set; }
     }

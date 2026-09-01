@@ -3,16 +3,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FinanceManager.Models
 {
-    [Table("Categories")]
     public class Category
     {
         public int Id { get; set; }
-        
-        [Required]
-        [MaxLength(50)]
-        public string Name { get; set; }
+  
+        public string Name { get; set; } = string.Empty;
 
-        [MaxLength(100)]
-        public string Description { get; set; }
+        public string Description { get; set; } = string.Empty;
+
+        public int UserId { get; set; }
+
+        public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
     };
 }

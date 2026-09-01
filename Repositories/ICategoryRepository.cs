@@ -1,10 +1,12 @@
 ﻿using FinanceManager.Models;
+using FinanceManager.Requests.Categories;
+using FinanceManager.Responses;
 
 namespace FinanceManager.Repositories
 {
     public interface ICategoryRepository
     {
-        Task<IQueryable<Category>> GetAllAsync(int skip, int take);
+        Task<IQueryable<Category>> GetAllAsync(CategoryGetAllRequest request);
         Task<Category> GetByIdAsync(int id);
         Task AddAsync(Category category);
         Task UpdateAsync(Category category);

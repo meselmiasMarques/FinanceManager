@@ -3,6 +3,7 @@ using System;
 using FinanceManager.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinanceManager.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260829013110_v2")]
+    partial class v2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -41,14 +44,10 @@ namespace FinanceManager.Migrations
                         .HasColumnType("varchar(50)")
                         .HasColumnName("Name");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("UserId");
-
                     b.HasKey("Id")
                         .HasName("PK_Category");
 
-                    b.ToTable("category", (string)null);
+                    b.ToTable("Category", (string)null);
                 });
 
             modelBuilder.Entity("FinanceManager.Models.Transaction", b =>
@@ -59,10 +58,6 @@ namespace FinanceManager.Migrations
                         .HasColumnName("Id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("Amount");
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("integer");
@@ -86,16 +81,12 @@ namespace FinanceManager.Migrations
                         .HasColumnType("timestamp")
                         .HasColumnName("UpdateAt");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("UserId");
-
                     b.HasKey("Id")
                         .HasName("PK_Transaction");
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("transaction", (string)null);
+                    b.ToTable("Transaction", (string)null);
                 });
 
             modelBuilder.Entity("FinanceManager.Models.Transaction", b =>

@@ -1,6 +1,9 @@
 ﻿using FinanceManager.Data;
 using FinanceManager.Models;
+using FinanceManager.Requests.Categories;
+using FinanceManager.Responses;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace FinanceManager.Repositories
 {
@@ -12,8 +15,20 @@ namespace FinanceManager.Repositories
         public async Task DeleteAsync(Category category) 
             => context.Remove(category);
 
-        public async Task<IQueryable<Category>> GetAllAsync(int skip, int take)
-            =>  context.Categories.AsNoTracking().Skip(skip).Take(take);
+        public async Task<IQueryable<Category>> GetAllAsync(CategoryGetAllRequest request)
+        {
+            var query = context
+                 .Categories
+                 .AsNoTracking()
+                 .Skip(request.PageNumber)
+                 .Take(request.PageSize)
+                 .Where(c => c.UserId == request.UserId);
+
+
+            return query;
+
+
+        }
         
         public async Task<Category> GetByIdAsync(int id)
             => await context.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id) 
@@ -25,4 +40,6 @@ namespace FinanceManager.Repositories
         public async Task CommitAsync()
             => await context.SaveChangesAsync();
     }
+
+   
 }

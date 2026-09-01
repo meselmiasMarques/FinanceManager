@@ -21,15 +21,20 @@ builder
 
 //Injeção de dependência dos Repositorios
 builder.Services.AddTransient<ICategoryRepository, CategoryRepository>();
+builder.Services.AddTransient<ITransactionRepository, TransactionRepository>();
+
 
 //Injeção de dependência dos Sevices
 builder.Services.AddTransient<ICategoryService, CategoryService>();
+builder.Services.AddTransient<ITransactionService, TransactionService>();
 
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddBearerToken();
 
 builder.Services.AddAuthorization();
 
+
+builder.Services.AddValidation();
 
 var app = builder.Build();
 
@@ -46,12 +51,8 @@ if (app.Environment.IsDevelopment())
 
 
 
-
-
-
-
-
-    CategoryEndPoints.MapCategoryEndpoints(app);
+CategoryEndPoints.MapCategoryEndpoints(app);
+TransactionEndPoints.MapTransactionEndpoints(app);
 
 
 

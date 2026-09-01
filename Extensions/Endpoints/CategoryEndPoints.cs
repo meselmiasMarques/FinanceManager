@@ -2,6 +2,7 @@
 using FinanceManager.Models;
 using FinanceManager.Requests.Categories;
 using FinanceManager.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinanceManager.Extensions.Endpoints
@@ -10,9 +11,18 @@ namespace FinanceManager.Extensions.Endpoints
     {
         public static void MapCategoryEndpoints(this IEndpointRouteBuilder app)
         {
-            app.MapGet("/categories/{skip:int}/{take:int}", async (ICategoryService Service, int skip = 0, int take = 10) =>
+            app.MapGet("/categories", async (
+                ICategoryService Service, 
+                int skip = 1, 
+                int take = 10) =>
             {
-                var result = await Service.GetAllAsync(skip, take);
+                var request = new CategoryGetAllRequest
+                {
+                    PageNumber = skip,
+                    PageSize = take,
+                   UserId = 1
+                };
+                var result = await Service.GetAllAsync(request);
                 return result.Code == 200 ? Results.Ok(result) : Results.BadRequest(result);
             })
                  .WithDescription("Lista as categorias")
@@ -22,7 +32,9 @@ namespace FinanceManager.Extensions.Endpoints
             app.MapGet("/categories{id:int}", async (ICategoryService Service, int id) =>
             {
                 var result = await Service.GetByIdAsync(new CategoryGetByIdRequest { Id = id });
-                return result.Code == 200 ? Results.Ok(result) : Results.BadRequest(result);
+                return result.IsSuccess ?
+                Results.Ok(result) 
+                : Results.BadRequest(result);
 
             })
                 .WithDescription("recupera uma categoria")
@@ -36,7 +48,9 @@ namespace FinanceManager.Extensions.Endpoints
                     Name = request.Name,
                     Description = request.Description
                 });
-                return result.Code == 201 ? Results.Created($"/categories/{result.Data.Id}", result.Data) : Results.BadRequest(result);
+                return result.IsSuccess 
+                    ? Results.Created($"/categories/{result.Data.Id}", result.Data) 
+                    : Results.BadRequest(result);
             })
                 .WithDescription("Cria uma nova categoria")
                 .WithTags("Categorias")
@@ -50,7 +64,9 @@ namespace FinanceManager.Extensions.Endpoints
                     Name = request.Name,
                     Description = request.Description
                 });
-                return result.Code == 200 ? Results.Ok(result) : Results.BadRequest(result);
+                return result.IsSuccess ? 
+                    Results.Ok(result) 
+                    : Results.BadRequest(result);
             })
                 .WithDescription("Edita uma categoria")
                 .WithTags("Categorias")
@@ -59,7 +75,9 @@ namespace FinanceManager.Extensions.Endpoints
             app.MapDelete("/categories/{id:int}", async (ICategoryService Service, int id) =>
             {
                 var result = await Service.DeleteAsync(new CategoryDeleteRequest { Id = id });
-                return result.Code == 200 ? Results.Ok(result) : Results.BadRequest(result);
+                return result.IsSuccess ? 
+                    Results.Ok(result) 
+                    : Results.BadRequest(result);
             })
                 .WithDescription("Deleta uma categoria")
                 .WithTags("Categorias")

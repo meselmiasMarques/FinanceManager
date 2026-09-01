@@ -1,7 +1,9 @@
 ﻿using FinanceManager.Models;
 using FinanceManager.Repositories;
+using FinanceManager.Requests;
 using FinanceManager.Requests.Categories;
 using FinanceManager.Responses;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinanceManager.Services
@@ -10,6 +12,9 @@ namespace FinanceManager.Services
     {
         public async Task<Response<Category>> AddAsync(CategoryCreateRequest request)
         {
+            
+
+
             var category = new Category
             {
                 Name = request.Name,
@@ -21,11 +26,11 @@ namespace FinanceManager.Services
                 await repository.AddAsync(category);
                 await repository.CommitAsync();
 
-                return new Response<Category>(201, "Categoria criada com sucesso", category);
+                return new Response<Category>(category, 201, "Categoria criada com sucesso");
             }
             catch
             {
-                return new Response<Category>(500, "Ocorreu um erro ao criar a categoria.");
+                return new Response<Category>(null, 500, "Ocorreu um erro ao criar a categoria.");
             }
         }
 
@@ -37,32 +42,33 @@ namespace FinanceManager.Services
                 var category = await repository.GetByIdAsync(request.Id);
 
                 if (category == null)
-                    return new Response<Category>(404, "Categoria não encontrada.");
+                    return new Response<Category>(null,404, "Categoria não encontrada.");
 
                 await repository.DeleteAsync(category);
                 await repository.CommitAsync();
-                return new Response<Category>(200, "Categoria deletada com sucesso.", category);
+                return new Response<Category>(category,200, "Categoria deletada com sucesso.");
             }
             catch
             {
-                return new Response<Category>(500, "Ocorreu um erro ao deletar a categoria.");
+                return new Response<Category>(null,500, "Ocorreu um erro ao deletar a categoria.");
             }
         }
 
-        public async Task<Response<List<Category>>> GetAllAsync(int skip, int take)
+        public async Task<PagedResponse<List<Category>>> GetAllAsync(CategoryGetAllRequest request)
         {
             try
             {
-                var result = await repository.GetAllAsync(skip, take);
+                var result = await repository.GetAllAsync(request);
 
-                var category = await result.OrderBy(c => c.Name).ToListAsync();
+               var totalCount = await result.CountAsync();
 
-                return new Response<List<Category>>(200, "", category);
+               return new PagedResponse<List<Category>>(result.ToList(), request.PageNumber, request.PageSize, totalCount);
 
             }
             catch
             {
-                return new Response<List<Category>>(500, "Ocorreu um erro ao buscar as categorias.");
+                return new PagedResponse<List<Category>>(null,500, "Ocorreu um erro ao buscar as categorias.");
+
             }
         }
 
@@ -72,13 +78,13 @@ namespace FinanceManager.Services
             {
                 var category = await repository.GetByIdAsync(request.Id);
                 if (category == null)
-                    return new Response<Category>(404, "Categoria não encontrada.");
+                    return new Response<Category>(null,404, "Categoria não encontrada.");
 
-                return new Response<Category>(200, "", category);
+                return new Response<Category>(category,200, "");
             }
             catch 
             {
-                return new Response<Category>(500, "Ocorreu um erro ao buscar a categoria.");
+                return new Response<Category>(null,500, "Ocorreu um erro ao buscar a categoria.");
             }
         }
 
@@ -88,7 +94,7 @@ namespace FinanceManager.Services
             {
                 var category = await repository.GetByIdAsync(request.Id);
                 if (category == null)
-                    return new Response<Category>(404, "Categoria não encontrada.");
+                    return new Response<Category>(null,404, "Categoria não encontrada.");
 
                 category.Name = request.Name;
                 category.Description = request.Description;
@@ -96,11 +102,11 @@ namespace FinanceManager.Services
                 await repository.UpdateAsync(category);
                 await repository.CommitAsync();
 
-                return new Response<Category>(200, "Categoria atualizada com sucesso.", category);
+                return new Response<Category>(category,200, "Categoria atualizada com sucesso.");
             }
             catch
             {
-                return new Response<Category>(500, "Ocorreu um erro ao atualizar a categoria.");
+                return new Response<Category>(null,500, "Ocorreu um erro ao atualizar a categoria.");
             }
         }
     }
