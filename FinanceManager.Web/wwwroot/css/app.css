@@ -1,0 +1,105 @@
+/* Estilos base do host (loading + tela de erro). O restante do visual vem do MudBlazor. */
+
+.loading-progress {
+    position: absolute;
+    display: block;
+    width: 8rem;
+    height: 8rem;
+    inset: 20vh 0 auto 0;
+    margin: 0 auto;
+}
+
+.loading-progress circle {
+    fill: none;
+    stroke: #e0e0e0;
+    stroke-width: 0.6rem;
+    transform-origin: 50% 50%;
+    transform: rotate(-90deg);
+}
+
+.loading-progress circle:last-child {
+    stroke: #2f6df0;
+    stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+    transition: stroke-dasharray 0.05s ease-in-out;
+}
+
+.loading-progress-text {
+    position: absolute;
+    text-align: center;
+    font-weight: bold;
+    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+}
+
+.loading-progress-text:after {
+    content: var(--blazor-load-percentage-text, "Carregando");
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 3000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+.blazor-error-boundary {
+    background: #b32121;
+    padding: 1rem 1rem 1rem 3.7rem;
+    color: white;
+}
+
+.blazor-error-boundary::after {
+    content: "Ocorreu um erro.";
+}
+
+/* Aviso de nova versão do PWA (RF-P01) */
+#pwa-update-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #2b323f;
+    color: #fff;
+    padding: 0.6rem 0.75rem 0.6rem 1rem;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+    font-size: 0.875rem;
+    z-index: 4000;
+    max-width: calc(100vw - 2rem);
+}
+
+#pwa-update-toast[hidden] {
+    display: none;
+}
+
+#pwa-update-btn {
+    background: #4d86f7;
+    color: #fff;
+    border: 0;
+    border-radius: 6px;
+    padding: 0.35rem 0.85rem;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#pwa-update-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}

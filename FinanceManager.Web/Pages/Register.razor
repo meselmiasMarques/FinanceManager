@@ -1,0 +1,117 @@
+@page "/cadastro"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@inject AuthService Auth
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Criar conta · FinanceManager</PageTitle>
+
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Crie sua conta gratuita</MudText>
+
+<EditForm Model="_model" OnValidSubmit="Submit">
+    <DataAnnotationsValidator />
+
+    <MudTextField @bind-Value="_model.DisplayName" Label="Nome" For="@(() => _model.DisplayName)"
+                  Immediate="true" Disabled="_busy" />
+
+    <MudTextField @bind-Value="_model.Email" Label="E-mail" InputType="InputType.Email" Class="mt-3"
+                  For="@(() => _model.Email)" Immediate="true" Disabled="_busy" />
+
+    <MudTextField @bind-Value="_model.Password" Label="Senha" Class="mt-3"
+                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                  For="@(() => _model.Password)" Immediate="true" Disabled="_busy"
+                  Adornment="Adornment.End"
+                  AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                  OnAdornmentClick="() => _showPassword = !_showPassword"
+                  AdornmentAriaLabel="Mostrar senha" />
+
+    <MudProgressLinear Value="_strengthPercent" Color="_strengthColor" Rounded="true" Class="mt-1 mb-1" />
+    <MudText Typo="Typo.caption" Color="Color.Secondary">@_strengthLabel · mínimo 8 caracteres, com letra e número</MudText>
+
+    <MudTextField @bind-Value="_model.ConfirmPassword" Label="Confirmar senha" Class="mt-3"
+                  InputType="InputType.Password" For="@(() => _model.ConfirmPassword)"
+                  Immediate="true" Disabled="_busy" />
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+    }
+
+    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+               FullWidth="true" Class="mt-4" Disabled="_busy">
+        @if (_busy)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+        }
+        Criar conta
+    </MudButton>
+</EditForm>
+
+<div class="d-flex justify-center gap-1 mt-4">
+    <MudText Typo="Typo.body2" Color="Color.Secondary">Já tem conta?</MudText>
+    <MudLink Href="@LoginHref" Typo="Typo.body2">Entrar</MudLink>
+</div>
+
+@code {
+    private readonly RegisterFormModel _model = new();
+    private bool _busy;
+    private bool _showPassword;
+    private string? _error;
+
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+
+    private string LoginHref => string.IsNullOrEmpty(ReturnUrl)
+        ? "/login"
+        : $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+
+    private int _strengthPercent => Math.Min(100, _model.Password.Length switch
+    {
+        0 => 0,
+        < 8 => 25,
+        _ => 50
+    } + (_model.Password.Any(char.IsDigit) ? 25 : 0) + (_model.Password.Any(char.IsLetter) ? 25 : 0));
+
+    private Color _strengthColor => _strengthPercent switch
+    {
+        >= 100 => Color.Success,
+        >= 50 => Color.Warning,
+        _ => Color.Error
+    };
+
+    private string _strengthLabel => _strengthPercent switch
+    {
+        >= 100 => "Senha forte",
+        >= 50 => "Senha média",
+        _ => "Senha fraca"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+            Nav.NavigateTo("/", forceLoad: false, replace: true);
+    }
+
+    private async Task Submit()
+    {
+        _busy = true;
+        _error = null;
+
+        var result = await Auth.RegisterAsync(_model);
+
+        _busy = false;
+
+        if (result.Succeeded)
+        {
+            var target = string.IsNullOrWhiteSpace(ReturnUrl) || !ReturnUrl.StartsWith('/') || ReturnUrl.StartsWith("//")
+                ? "/"
+                : ReturnUrl;
+            Nav.NavigateTo(target, forceLoad: false);
+        }
+        else
+        {
+            _error = result.Error;
+        }
+    }
+}

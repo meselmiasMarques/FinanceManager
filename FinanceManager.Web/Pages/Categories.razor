@@ -1,0 +1,96 @@
+@page "/categorias"
+@attribute [Authorize]
+@inject CategoryApiClient Api
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Categorias · FinanceManager</PageTitle>
+
+<div class="d-flex justify-space-between align-center flex-wrap gap-2 mb-4">
+    <div>
+        <MudText Typo="Typo.h5">Categorias</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Organize suas receitas e despesas</MudText>
+    </div>
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary"
+               OnClick="OpenCreate">Nova categoria</MudButton>
+</div>
+
+<MudTable @ref="_table" ServerData="LoadData" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1">
+    <HeaderContent>
+        <MudTh>#</MudTh>
+        <MudTh>Nome</MudTh>
+        <MudTh>Descrição</MudTh>
+        <MudTh Style="text-align:right">Ações</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="#">@context.Id</MudTd>
+        <MudTd DataLabel="Nome"><strong>@context.Name</strong></MudTd>
+        <MudTd DataLabel="Descrição">
+            @(string.IsNullOrWhiteSpace(context.Description) ? "—" : context.Description)
+        </MudTd>
+        <MudTd DataLabel="Ações" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => OpenEdit(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                           OnClick="() => Delete(context)" />
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <div class="d-flex flex-column align-center gap-3 pa-6">
+            <MudText Color="Color.Secondary">Nenhuma categoria cadastrada.</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenCreate">Criar a primeira</MudButton>
+        </div>
+    </NoRecordsContent>
+    <LoadingContent><MudText>Carregando categorias...</MudText></LoadingContent>
+    <PagerContent><MudTablePager PageSizeOptions="new[] { 10, 25, 50 }" /></PagerContent>
+</MudTable>
+
+@code {
+    private MudTable<CategoryModel> _table = default!;
+
+    private async Task<TableData<CategoryModel>> LoadData(TableState state, CancellationToken token)
+    {
+        var response = await Api.GetAllAsync(state.Page + 1, state.PageSize, token);
+        if (!response.IsSuccess || response.Data is null)
+        {
+            Snackbar.Add(response.Message.Length > 0 ? response.Message : "Não foi possível carregar as categorias.", Severity.Error);
+            return new TableData<CategoryModel> { Items = [], TotalItems = 0 };
+        }
+        return new TableData<CategoryModel> { Items = response.Data, TotalItems = response.TotalCount };
+    }
+
+    private Task OpenCreate() => ShowDialog(null);
+
+    private Task OpenEdit(CategoryModel category) => ShowDialog(category);
+
+    private async Task ShowDialog(CategoryModel? category)
+    {
+        var parameters = new DialogParameters<CategoryDialog> { { x => x.Category, category } };
+        var dialog = await DialogService.ShowAsync<CategoryDialog>(null, parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await _table.ReloadServerData();
+    }
+
+    private async Task Delete(CategoryModel category)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, "Excluir categoria" },
+            { x => x.Message, $"Excluir a categoria \"{category.Name}\"? Categorias com transações vinculadas não podem ser removidas." },
+            { x => x.ConfirmText, "Excluir" },
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(null, parameters);
+        if (await dialog.Result is not { Canceled: false }) return;
+
+        var response = await Api.DeleteAsync(category.Id);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Categoria excluída.", Severity.Success);
+            await _table.ReloadServerData();
+        }
+        else
+        {
+            Snackbar.Add(response.Message.Length > 0 ? response.Message : "Não foi possível excluir a categoria.", Severity.Error);
+        }
+    }
+}

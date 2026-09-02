@@ -1,0 +1,91 @@
+@page "/login"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@inject AuthService Auth
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Entrar · FinanceManager</PageTitle>
+
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Entre para acessar suas finanças</MudText>
+
+<EditForm Model="_model" OnValidSubmit="Submit">
+    <DataAnnotationsValidator />
+
+    <MudTextField @bind-Value="_model.Email" Label="E-mail" InputType="InputType.Email"
+                  For="@(() => _model.Email)" Immediate="true" Disabled="_busy" />
+
+    <MudTextField @bind-Value="_model.Password" Label="Senha" Class="mt-3"
+                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                  For="@(() => _model.Password)" Disabled="_busy"
+                  Adornment="Adornment.End"
+                  AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                  OnAdornmentClick="() => _showPassword = !_showPassword"
+                  AdornmentAriaLabel="Mostrar senha" />
+
+    <div class="d-flex justify-space-between align-center mt-2">
+        <MudCheckBox @bind-Value="_model.RememberMe" Label="Manter conectado" Dense="true" Disabled="_busy" />
+    </div>
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+    }
+
+    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+               FullWidth="true" Class="mt-4" Disabled="_busy">
+        @if (_busy)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+        }
+        Entrar
+    </MudButton>
+</EditForm>
+
+<div class="d-flex justify-center gap-1 mt-4">
+    <MudText Typo="Typo.body2" Color="Color.Secondary">Não tem conta?</MudText>
+    <MudLink Href="@RegisterHref" Typo="Typo.body2">Criar conta</MudLink>
+</div>
+
+@code {
+    private readonly LoginFormModel _model = new();
+    private bool _busy;
+    private bool _showPassword;
+    private string? _error;
+
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+
+    private string RegisterHref => string.IsNullOrEmpty(ReturnUrl)
+        ? "/cadastro"
+        : $"/cadastro?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Já autenticado? Vai direto para o destino.
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+            Nav.NavigateTo(SafeReturnUrl(), forceLoad: false, replace: true);
+    }
+
+    private async Task Submit()
+    {
+        _busy = true;
+        _error = null;
+
+        var result = await Auth.LoginAsync(_model);
+
+        _busy = false;
+
+        if (result.Succeeded)
+            Nav.NavigateTo(SafeReturnUrl(), forceLoad: false);
+        else
+            _error = result.Error;
+    }
+
+    private string SafeReturnUrl()
+    {
+        if (string.IsNullOrWhiteSpace(ReturnUrl)) return "/";
+        // Só caminhos internos absolutos.
+        return ReturnUrl.StartsWith('/') && !ReturnUrl.StartsWith("//") ? ReturnUrl : "/";
+    }
+}

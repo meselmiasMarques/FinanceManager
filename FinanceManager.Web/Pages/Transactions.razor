@@ -1,0 +1,153 @@
+@page "/transacoes"
+@attribute [Authorize]
+@inject TransactionApiClient Api
+@inject CategoryApiClient CategoryApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Transações · FinanceManager</PageTitle>
+
+<div class="d-flex justify-space-between align-center flex-wrap gap-2 mb-4">
+    <div>
+        <MudText Typo="Typo.h5">Transações</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Lançamentos de receitas e despesas</MudText>
+    </div>
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary"
+               OnClick="OpenCreate" Disabled="_categories.Count == 0">Nova transação</MudButton>
+</div>
+
+@if (!_categoriesLoaded)
+{
+    <div class="d-flex justify-center pa-10">
+        <MudProgressCircular Indeterminate="true" />
+    </div>
+}
+else
+{
+@if (_categories.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+        Cadastre ao menos uma categoria antes de lançar transações.
+        <MudLink Href="/categorias" Class="ms-1">Ir para categorias</MudLink>
+    </MudAlert>
+}
+
+<MudTable @ref="_table" ServerData="LoadData" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1">
+    <HeaderContent>
+        <MudTh>Data</MudTh>
+        <MudTh>Título</MudTh>
+        <MudTh>Categoria</MudTh>
+        <MudTh>Tipo</MudTh>
+        <MudTh Style="text-align:right">Valor</MudTh>
+        <MudTh Style="text-align:right">Ações</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Data">@Format.Date(context.CreatedAt)</MudTd>
+        <MudTd DataLabel="Título"><strong>@context.Title</strong></MudTd>
+        <MudTd DataLabel="Categoria">@CategoryName(context.CategoryId)</MudTd>
+        <MudTd DataLabel="Tipo">
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Text"
+                     Color="@(context.Type == ETransactionType.Deposit ? Color.Success : Color.Error)">
+                @context.Type.ToDisplay()
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Valor" Style="text-align:right">
+            <MudText Color="@(context.Type == ETransactionType.Deposit ? Color.Success : Color.Error)"
+                     Style="font-weight:600">
+                @(context.Type == ETransactionType.Deposit ? "+" : "-")@Format.Currency(context.Amount)
+            </MudText>
+        </MudTd>
+        <MudTd DataLabel="Ações" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => OpenEdit(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                           OnClick="() => Delete(context)" />
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <div class="d-flex flex-column align-center gap-3 pa-6">
+            <MudText Color="Color.Secondary">Nenhuma transação registrada.</MudText>
+            @if (_categories.Count > 0)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenCreate">Lançar a primeira</MudButton>
+            }
+        </div>
+    </NoRecordsContent>
+    <LoadingContent><MudText>Carregando transações...</MudText></LoadingContent>
+    <PagerContent><MudTablePager PageSizeOptions="new[] { 10, 25, 50 }" /></PagerContent>
+</MudTable>
+}
+
+@code {
+    private MudTable<TransactionModel> _table = default!;
+    private readonly List<CategoryModel> _categories = new();
+    private readonly Dictionary<int, string> _categoryNames = new();
+    private bool _categoriesLoaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await CategoryApi.GetAllAsync(1, 100);
+        if (response.IsSuccess && response.Data is not null)
+        {
+            _categories.AddRange(response.Data);
+            foreach (var c in _categories)
+                _categoryNames[c.Id] = c.Name;
+        }
+        else
+        {
+            Snackbar.Add(response.Message.Length > 0 ? response.Message : "Não foi possível carregar as categorias.", Severity.Error);
+        }
+        _categoriesLoaded = true;
+    }
+
+    private string CategoryName(int id) => _categoryNames.GetValueOrDefault(id, "(sem categoria)");
+
+    private async Task<TableData<TransactionModel>> LoadData(TableState state, CancellationToken token)
+    {
+        var response = await Api.GetAllAsync(state.Page + 1, state.PageSize, token);
+        if (!response.IsSuccess || response.Data is null)
+        {
+            Snackbar.Add(response.Message.Length > 0 ? response.Message : "Não foi possível carregar as transações.", Severity.Error);
+            return new TableData<TransactionModel> { Items = [], TotalItems = 0 };
+        }
+        return new TableData<TransactionModel> { Items = response.Data, TotalItems = response.TotalCount };
+    }
+
+    private Task OpenCreate() => ShowDialog(null);
+
+    private Task OpenEdit(TransactionModel transaction) => ShowDialog(transaction);
+
+    private async Task ShowDialog(TransactionModel? transaction)
+    {
+        var parameters = new DialogParameters<TransactionDialog>
+        {
+            { x => x.Transaction, transaction },
+            { x => x.Categories, _categories },
+        };
+        var dialog = await DialogService.ShowAsync<TransactionDialog>(null, parameters);
+        if (await dialog.Result is { Canceled: false })
+            await _table.ReloadServerData();
+    }
+
+    private async Task Delete(TransactionModel transaction)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, "Excluir transação" },
+            { x => x.Message, $"Excluir a transação \"{transaction.Title}\"?" },
+            { x => x.ConfirmText, "Excluir" },
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(null, parameters);
+        if (await dialog.Result is not { Canceled: false }) return;
+
+        var response = await Api.DeleteAsync(transaction.Id);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Transação excluída.", Severity.Success);
+            await _table.ReloadServerData();
+        }
+        else
+        {
+            Snackbar.Add(response.Message.Length > 0 ? response.Message : "Não foi possível excluir a transação.", Severity.Error);
+        }
+    }
+}

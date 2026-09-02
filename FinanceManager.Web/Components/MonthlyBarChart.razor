@@ -1,0 +1,55 @@
+@using FinanceManager.Web.Services
+
+@if (Items is null || Items.Count == 0)
+{
+    <MudText Color="Color.Secondary">Sem dados no período.</MudText>
+}
+else
+{
+    var max = Math.Max(1m, Items.Max(i => Math.Max(i.Income, i.Expense))) * 1.15m;
+    var slot = 100.0 / Items.Count;
+    var barW = slot * 0.30;
+
+    <div class="fm-chart">
+        <svg viewBox="0 0 100 62" preserveAspectRatio="none" role="img" aria-label="Receitas e despesas por mês">
+            @for (var g = 1; g < 4; g++)
+            {
+                var y = 56 - (56 * g / 4.0);
+                <line x1="0" y1="@y.ToString(Inv)" x2="100" y2="@y.ToString(Inv)" class="fm-chart-grid" />
+            }
+            @for (var idx = 0; idx < Items.Count; idx++)
+            {
+                var it = Items[idx];
+                var centre = slot * idx + slot / 2;
+                var incH = 56m * (it.Income / max);
+                var expH = 56m * (it.Expense / max);
+
+                <rect x="@((centre - barW - 0.6).ToString(Inv))" y="@((56m - incH).ToString(Inv))"
+                      width="@barW.ToString(Inv)" height="@incH.ToString(Inv)" class="fm-bar fm-bar-income">
+                    <title>@it.Label · Receitas @Format.Currency(it.Income)</title>
+                </rect>
+                <rect x="@((centre + 0.6).ToString(Inv))" y="@((56m - expH).ToString(Inv))"
+                      width="@barW.ToString(Inv)" height="@expH.ToString(Inv)" class="fm-bar fm-bar-expense">
+                    <title>@it.Label · Despesas @Format.Currency(it.Expense)</title>
+                </rect>
+            }
+            <line x1="0" y1="56" x2="100" y2="56" class="fm-chart-axis" />
+        </svg>
+        <div class="fm-chart-labels">
+            @foreach (var it in Items)
+            {
+                <span>@it.Label</span>
+            }
+        </div>
+        <div class="fm-chart-legend">
+            <span><i class="fm-swatch fm-bar-income"></i> Receitas</span>
+            <span><i class="fm-swatch fm-bar-expense"></i> Despesas</span>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public List<MonthlySeriesItem>? Items { get; set; }
+
+    private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+}

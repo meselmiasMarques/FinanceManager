@@ -1,0 +1,75 @@
+@inject CategoryApiClient Api
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_model.IsNew ? "Nova categoria" : "Editar categoria")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_model.Name" Label="Nome" Required="true"
+                          RequiredError="O nome é obrigatório." Immediate="true"
+                          Validation="@(new Func<string, string?>(ValidateName))" Counter="50" MaxLength="50" />
+            <MudTextField @bind-Value="_model.Description" Label="Descrição" Class="mt-3"
+                          Lines="3" Counter="200" MaxLength="200"
+                          Validation="@(new Func<string, string?>(ValidateDescription))" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="_saving">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+            }
+            Salvar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>Categoria a editar; se null, cria uma nova.</summary>
+    [Parameter] public CategoryModel? Category { get; set; }
+
+    private CategoryFormModel _model = new();
+    private MudForm _form = default!;
+    private bool _saving;
+
+    protected override void OnInitialized()
+        => _model = Category is null ? new CategoryFormModel() : CategoryFormModel.FromCategory(Category);
+
+    private static string? ValidateName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "O nome é obrigatório.";
+        if (value.Trim().Length < 3) return "O nome deve ter ao menos 3 caracteres.";
+        if (value.Length > 50) return "O nome não pode passar de 50 caracteres.";
+        return null;
+    }
+
+    private static string? ValidateDescription(string? value)
+        => value is { Length: > 200 } ? "A descrição não pode passar de 200 caracteres." : null;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _saving = true;
+        var response = _model.IsNew ? await Api.CreateAsync(_model) : await Api.UpdateAsync(_model);
+        _saving = false;
+
+        if (response.IsSuccess)
+        {
+            Snackbar.Add(_model.IsNew ? "Categoria criada." : "Categoria atualizada.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add(response.Message.Length > 0 ? response.Message : "Não foi possível salvar a categoria.", Severity.Error);
+        }
+    }
+}

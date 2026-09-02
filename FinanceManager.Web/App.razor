@@ -1,0 +1,87 @@
+@implements IDisposable
+@inject UiPreferences Ui
+
+<MudThemeProvider @ref="_themeProvider" Theme="AppTheme.Instance"
+                  IsDarkMode="_isDarkMode" IsDarkModeChanged="OnDarkModeChanged" />
+<MudPopoverProvider />
+<MudDialogProvider CloseButton="true" MaxWidth="MaxWidth.ExtraSmall" FullWidth="true" BackdropClick="false" />
+<MudSnackbarProvider />
+
+<CascadingValue Value="this">
+    <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <RedirectToLogin />
+                </NotAuthorized>
+                <Authorizing>
+                    <MudLayout>
+                        <MudMainContent>
+                            <div class="d-flex justify-center pa-16">
+                                <MudProgressCircular Indeterminate="true" />
+                            </div>
+                        </MudMainContent>
+                    </MudLayout>
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+    </Router>
+</CascadingValue>
+
+@code {
+    private MudThemeProvider _themeProvider = default!;
+    private bool _isDarkMode;
+    private bool _themeReady;
+
+    /// <summary>Modo escuro efetivo (após resolver preferência salva / sistema operacional).</summary>
+    public bool IsDarkMode => _isDarkMode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Ui.InitializeAsync();
+        if (Ui.DarkMode is { } saved)
+        {
+            _isDarkMode = saved;
+            _themeReady = true;
+        }
+        Ui.Changed += OnPreferencesChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Sem preferência salva: adota o tema do sistema operacional na primeira renderização.
+        if (firstRender && !_themeReady)
+        {
+            _isDarkMode = await _themeProvider.GetSystemDarkModeAsync();
+            _themeReady = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnDarkModeChanged(bool value)
+    {
+        if (value == _isDarkMode)
+            return;
+
+        _isDarkMode = value;
+        StateHasChanged(); // toggle pode vir de outro componente (menu/layout) via método cascateado
+
+        // Só persiste depois que o tema inicial já foi resolvido (evita eco do provider sobrescrever a preferência).
+        if (_themeReady)
+            await Ui.SetDarkModeAsync(value);
+    }
+
+    public Task ToggleDarkModeAsync() => OnDarkModeChanged(!_isDarkMode);
+
+    private void OnPreferencesChanged()
+    {
+        if (Ui.DarkMode is { } dark && dark != _isDarkMode)
+        {
+            _isDarkMode = dark;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose() => Ui.Changed -= OnPreferencesChanged;
+}

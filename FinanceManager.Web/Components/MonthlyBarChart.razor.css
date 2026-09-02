@@ -1,0 +1,60 @@
+.fm-chart svg {
+    width: 100%;
+    height: 300px;
+    display: block;
+}
+
+.fm-chart-grid {
+    stroke: var(--mud-palette-lines-default);
+    stroke-width: .3;
+}
+
+.fm-chart-axis {
+    stroke: var(--mud-palette-text-secondary);
+    stroke-width: .4;
+}
+
+.fm-bar-income {
+    fill: var(--mud-palette-success);
+}
+
+.fm-bar-expense {
+    fill: var(--mud-palette-error);
+}
+
+.fm-bar {
+    rx: .6;
+}
+
+.fm-chart-labels {
+    display: flex;
+    justify-content: space-around;
+    font-size: .72rem;
+    color: var(--mud-palette-text-secondary);
+    margin-top: .35rem;
+}
+
+.fm-chart-legend {
+    display: flex;
+    gap: 1.1rem;
+    margin-top: .6rem;
+    font-size: .8rem;
+    color: var(--mud-palette-text-secondary);
+}
+
+.fm-swatch {
+    display: inline-block;
+    width: .8rem;
+    height: .8rem;
+    border-radius: 3px;
+    margin-right: .3rem;
+    vertical-align: -1px;
+}
+
+.fm-swatch.fm-bar-income {
+    background: var(--mud-palette-success);
+}
+
+.fm-swatch.fm-bar-expense {
+    background: var(--mud-palette-error);
+}

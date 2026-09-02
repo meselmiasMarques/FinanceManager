@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<MudLayout>
+    <MudMainContent>
+        <div class="d-flex flex-column align-center justify-center"
+             style="min-height:100dvh; padding:24px; background:var(--mud-palette-background);">
+            <MudPaper Elevation="3" Class="pa-8" Style="width:100%; max-width:400px;">
+                <div class="d-flex align-center gap-2 mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h6">FinanceManager</MudText>
+                </div>
+                @Body
+            </MudPaper>
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-4">
+                Gerenciamento de finanças pessoais
+            </MudText>
+        </div>
+    </MudMainContent>
+</MudLayout>

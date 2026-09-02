@@ -1,0 +1,18 @@
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        var relative = Nav.ToBaseRelativePath(Nav.Uri);
+
+        // Sem returnUrl para a própria tela de login/cadastro.
+        var isAuthPage = relative.StartsWith("login", StringComparison.OrdinalIgnoreCase)
+                         || relative.StartsWith("cadastro", StringComparison.OrdinalIgnoreCase);
+
+        var target = isAuthPage || string.IsNullOrEmpty(relative)
+            ? "login"
+            : $"login?returnUrl={Uri.EscapeDataString("/" + relative)}";
+
+        Nav.NavigateTo(target, forceLoad: false, replace: true);
+    }
+}

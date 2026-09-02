@@ -1,0 +1,71 @@
+@inherits LayoutComponentBase
+@inject UiPreferences Ui
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                       OnClick="ToggleDrawer" aria-label="Abrir menu" />
+        <MudText Typo="Typo.h6" Class="ms-1">FinanceManager</MudText>
+        <MudSpacer />
+        <MudTooltip Text="@(DarkMode ? "Tema claro" : "Tema escuro")">
+            <MudIconButton Color="Color.Inherit"
+                           Icon="@(DarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           OnClick="ToggleDarkMode" />
+        </MudTooltip>
+
+        <AuthorizeView Context="auth">
+            <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Dense="true"
+                     AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" AriaLabel="Conta">
+                <div class="px-4 py-2">
+                    <MudText Typo="Typo.body2" Style="font-weight:600">@DisplayName(auth)</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@auth.User.FindFirst("email")?.Value</MudText>
+                </div>
+                <MudDivider Class="my-1" />
+                <MudMenuItem Icon="@Icons.Material.Filled.Password" Href="/conta/senha">Alterar senha</MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="Logout">Sair</MudMenuItem>
+            </MudMenu>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="1" ClipMode="DrawerClipMode.Always"
+               Breakpoint="Breakpoint.Lg" Variant="@DrawerVariant.Responsive">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    [CascadingParameter] private App AppRoot { get; set; } = default!;
+
+    private bool _drawerOpen = true;
+
+    private bool DarkMode => AppRoot.IsDarkMode;
+
+    protected override void OnInitialized() => _drawerOpen = Ui.DrawerOpen;
+
+    private async Task ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+        await Ui.SetDrawerOpenAsync(_drawerOpen);
+    }
+
+    private Task ToggleDarkMode() => AppRoot.ToggleDarkModeAsync();
+
+    private async Task Logout()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: false);
+    }
+
+    private static string DisplayName(AuthenticationState state)
+        => state.User.FindFirst("name")?.Value
+           ?? state.User.Identity?.Name
+           ?? "Minha conta";
+}

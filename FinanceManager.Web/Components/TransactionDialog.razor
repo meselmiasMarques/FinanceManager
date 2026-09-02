@@ -1,0 +1,96 @@
+@inject TransactionApiClient Api
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_model.IsNew ? "Nova transação" : "Editar transação")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_model.Title" Label="Título" Required="true"
+                          RequiredError="O título é obrigatório." Immediate="true"
+                          Validation="@(new Func<string, string?>(ValidateTitle))" Counter="100" MaxLength="100" />
+
+            <MudSelect @bind-Value="_model.Type" Label="Tipo" Class="mt-3" Dense="true">
+                <MudSelectItem Value="ETransactionType.Withdrawal">Despesa</MudSelectItem>
+                <MudSelectItem Value="ETransactionType.Deposit">Receita</MudSelectItem>
+            </MudSelect>
+
+            <MudNumericField @bind-Value="_model.Amount" Label="Valor (R$)" Class="mt-3"
+                             Min="0m" Format="F2" Culture="_culture"
+                             Validation="@(new Func<decimal, string?>(ValidateAmount))" />
+
+            <MudSelect @bind-Value="_model.CategoryId" Label="Categoria" Class="mt-3" Dense="true"
+                       Validation="@(new Func<int, string?>(ValidateCategory))">
+                @foreach (var c in Categories)
+                {
+                    <MudSelectItem Value="c.Id">@c.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="_saving">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+            }
+            Salvar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public TransactionModel? Transaction { get; set; }
+    [Parameter] public IReadOnlyList<CategoryModel> Categories { get; set; } = [];
+
+    private readonly CultureInfo _culture = CultureInfo.GetCultureInfo("pt-BR");
+    private TransactionFormModel _model = new();
+    private MudForm _form = default!;
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        _model = Transaction is null ? new TransactionFormModel() : TransactionFormModel.FromTransaction(Transaction);
+        if (_model.IsNew && _model.CategoryId == 0 && Categories.Count > 0)
+            _model.CategoryId = Categories[0].Id;
+    }
+
+    private static string? ValidateTitle(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "O título é obrigatório.";
+        if (value.Length > 100) return "O título não pode passar de 100 caracteres.";
+        return null;
+    }
+
+    private static string? ValidateAmount(decimal value)
+        => value <= 0 ? "O valor deve ser maior que zero." : null;
+
+    private static string? ValidateCategory(int value)
+        => value <= 0 ? "Selecione uma categoria." : null;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _saving = true;
+        var response = _model.IsNew ? await Api.CreateAsync(_model) : await Api.UpdateAsync(_model);
+        _saving = false;
+
+        if (response.IsSuccess)
+        {
+            Snackbar.Add(_model.IsNew ? "Transação criada." : "Transação atualizada.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add(response.Message.Length > 0 ? response.Message : "Não foi possível salvar a transação.", Severity.Error);
+        }
+    }
+}
